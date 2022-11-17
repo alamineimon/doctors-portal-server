@@ -78,13 +78,16 @@ async function run() {
       const result = await bookingCollection.insertOne(booking);
       res.send(result);
     })
-
+// create an user
     app.post('/users', async(req, res) => {
       const user = req.body
       const result = await usersCollection.insertOne(user)
       res.send(result)
     })
 
+
+    
+    // get user data
     app.get('/users', async (req, res) => {
       // const date = req.query.date;
       const query = {};
