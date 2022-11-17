@@ -23,9 +23,7 @@ async function run() {
       .db("doctorPortal")
       .collection("appointmentOptions");
     const bookingCollection = client.db("doctorPortal").collection("booking");
-
-
-
+    const usersCollection = client.db("doctorPortal").collection("uses");
 
     //use aggregate query multiple collection and then merg date
     app.get("/appointmentOptions", async (req, res) => {
@@ -33,56 +31,67 @@ async function run() {
       const query = {};
       const options = await appoinmentOptionCollection.find(query).toArray();
       //get the bookings of the provided date
-      const bookingQuery = { appoinment: date }
-      const alreadyBooked = await bookingCollection.find(bookingQuery).toArray()
+      const bookingQuery = { appoinment: date };
+      const alreadyBooked = await bookingCollection
+        .find(bookingQuery)
+        .toArray();
       //code carefully :xD
-      options.forEach(option => {
-        const optionBooked = alreadyBooked.filter((book) => book.treatment === option.name)
+      options.forEach((option) => {
+        const optionBooked = alreadyBooked.filter(
+          (book) => book.treatment === option.name
+        );
         const bookedSlots = optionBooked.map((book) => book.slot);
-        const remainingSlots = option.slots.filter(slot => !bookedSlots.includes(slot))
-        option.slots = remainingSlots
-      })
+        const remainingSlots = option.slots.filter(
+          (slot) => !bookedSlots.includes(slot)
+        );
+        option.slots = remainingSlots;
+      });
       res.send(options);
     });
 
 
+// get booking data br email
+    app.get("/booking", async(req, res) => {
+      const email = req.query.email
+      console.log(email);
+      const query = { email: email };
+      const booking = await bookingCollection.find(query).toArray()
+      res.send(booking)
+    });
 
 
-
-
-    // app.post("/booking", async (req, res) => {
-    //   const booking = req.body;
-    //   console.log(booking);
-    //   const result = await bookingCollection.insertOne(booking);
-    //   res.send(result);
-    // });
-
-
-
+// post boking data
     app.post("/booking", async (req, res) => {
       const booking = req.body;
       console.log(booking);
       const query = {
         appoinment: booking.appoinment,
-        email:booking.email,
-        treatment:booking.treatment
-      }
+        email: booking.email,
+        treatment: booking.treatment,
+      };
 
-      const alreadybooked = await bookingCollection.find(query).toArray()
+      const alreadybooked = await bookingCollection.find(query).toArray();
       if (alreadybooked.length) {
-        const message = `You already have a booking on `
+        const message = `You already have a booking on `;
         return res.send({ acknowledged: false, message });
       }
       const result = await bookingCollection.insertOne(booking);
       res.send(result);
-    });
+    })
 
-    // //get booking data
-    // app.get('/booking', async (req, res) => {
-    //    const query = {};
-    //    const booking = await bookingCollection.find(query).toArray();
-    //   res.send(booking);
-    //   })
+    app.post('/users', async(req, res) => {
+      const user = req.body
+      const result = await usersCollection.insertOne(user)
+      res.send(result)
+    })
+
+    app.get('/users', async (req, res) => {
+      // const date = req.query.date;
+      const query = {};
+      const users = await usersCollection.find(query).toArray();
+      res.send(users)
+    })
+
   } finally {
   }
 }
