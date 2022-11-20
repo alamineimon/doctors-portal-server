@@ -21,7 +21,6 @@ const client = new MongoClient(uri, {
 
 function verifyJWT(req, res, next) {
   const authHeader = req.headers.authorization;
-  // console.log(authHeader);
   if (!authHeader) {
     return res.status(401).send("unauthorized access");
   }
@@ -36,6 +35,8 @@ function verifyJWT(req, res, next) {
   });
 }
 
+
+
 async function run() {
   try {
     const appoinmentOptionCollection = client
@@ -44,6 +45,19 @@ async function run() {
     const bookingCollection = client.db("doctorPortal").collection("booking");
     const usersCollection = client.db("doctorPortal").collection("uses");
     const doctorsCollection = client.db("doctorPortal").collection("doctors");
+
+    //verify admin by JWT
+    //make sure you are use verifyAdmin after verifyJWT
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user.role !== "admin") {
+        return res.status(403).send({ message: "forbidden acccess" });
+      }
+      next();
+    };
 
     //use aggregate query multiple collection and then merg date
     app.get("/appointmentOptions", async (req, res) => {
@@ -84,12 +98,20 @@ async function run() {
       const email = req.query.email;
       const decodedEmail = req.decoded.email;
       if (email !== decodedEmail) {
-        return res.status(403).send({ mes: "forbidden acces" });
+        return res.status(403).send({ message: "forbidden acces" });
       }
       const query = { email: email };
       const booking = await bookingCollection.find(query).toArray();
       res.send(booking);
     });
+
+    //get booking data by id
+    app.get('/bokking/:id', async(req, res) => {
+      const id = req.params.id
+      const query = { _id: ObjectId(id) }
+      const booking = await bookingCollection.findOne(query)
+      res.send(booking)
+    })
 
     // post boking data
     app.post("/booking", async (req, res) => {
@@ -146,13 +168,7 @@ async function run() {
     });
 
     // get user data by id
-    app.put("/users/admin/:id", verifyJWT, async (req, res) => {
-      const decodedEmail = req.decoded.email;
-      const query = { email: decodedEmail };
-      const user = await usersCollection.findOne(query);
-      if (user.role !== "admin") {
-        return res.status(403).send({ message: "forbidden acccess" });
-      }
+    app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
       const options = { upsert: true };
@@ -169,20 +185,38 @@ async function run() {
       res.send(result);
     });
 
+
+  // //upadte price fielt
+  //   app.get('/addprice', async (req, res) => {
+  //     const filter = {}
+  //     const options = { upsert: true };
+  //     const updatedDoc = {
+  //       $set: {
+  //         price: 99
+  //       }
+  //     }
+  //     const result = await appoinmentOptionCollection.updateMany(
+  //       filter,
+  //       updatedDoc,
+  //       options
+  //     );
+  //     res.send(result);
+
+  //   })
     //get all doctors data
-    app.get("/doctors", verifyJWT, async (req, res) => {
+    app.get("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
       const query = {};
       const result = await doctorsCollection.find(query).toArray();
       res.send(result);
     });
     //post doctors data
-    app.post("/doctors", verifyJWT, async (req, res) => {
+    app.post("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
       const doctor = req.body;
       const result = await doctorsCollection.insertOne(doctor);
       res.send(result);
     });
     //delete doctors data
-    app.delete("/doctors/:id", verifyJWT, async (req, res) => {
+    app.delete("/doctors/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: ObjectId(id) };
       const result = await doctorsCollection.deleteOne(filter);
